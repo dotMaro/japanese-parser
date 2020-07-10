@@ -1,0 +1,5 @@
+package japaneseparser
+
+func main() {
+
+}
