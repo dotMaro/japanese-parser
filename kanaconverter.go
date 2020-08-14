@@ -1,4 +1,4 @@
-package japaneseparser
+package main
 
 import "strings"
 

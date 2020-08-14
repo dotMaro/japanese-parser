@@ -1,1 +1,1 @@
-package japaneseparser
+package main

@@ -1,4 +1,4 @@
-package japaneseparser
+package main
 
 import "testing"
 
@@ -14,8 +14,4 @@ func TestReadJMDict(t *testing.T) {
 	if len < minExpectedEntries {
 		t.Errorf("Should have at least %d entries but had %d", minExpectedEntries, len)
 	}
-
-	t.Log(dict.Entries[100000])
-
-	t.Fail()
 }
