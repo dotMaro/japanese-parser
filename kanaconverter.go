@@ -13,18 +13,26 @@ func KataToHira(i string) string {
 
 // kataToHiraRune returns the hiragana equivalent of the katakana rune.
 // If the input is not katakana then it is returned unchanged.
-func kataToHiraRune(i rune) rune {
-	if i >= 'ァ' && i <= 'ヶ' {
-		return i - 0x60
+func kataToHiraRune(r rune) rune {
+	if isKata(r) {
+		return r - 0x60
 	}
-	return i
+	return r
+}
+
+func isKata(r rune) bool {
+	return r >= 'ァ' && r <= 'ヶ'
 }
 
 // hiraToKataRune returns the katakana equivalent of the hiragana rune.
 // If the input is not hiragana then it is returned unchanged.
-func hiraToKataRune(i rune) rune {
-	if i >= 'ぁ' && i <= 'ゖ' {
-		return i + 0x60
+func hiraToKataRune(r rune) rune {
+	if isHira(r) {
+		return r + 0x60
 	}
-	return i
+	return r
+}
+
+func isHira(r rune) bool {
+	return r >= 'ぁ' && r <= 'ゖ'
 }

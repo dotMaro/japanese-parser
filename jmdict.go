@@ -23,6 +23,10 @@ type Entry struct {
 	Glossary []string `xml:"sense>gloss"`
 }
 
+func (e Entry) String() string {
+	return fmt.Sprintf("%v %v %v", e.Kanji, e.Readings, e.Glossary)
+}
+
 // ReadJMDict reads and parses a JMdict file.
 // Upon error it will panic.
 func ReadJMDict() JMdict {
