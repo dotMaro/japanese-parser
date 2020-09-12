@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 const jmdictSnippet = "JMdict_e-snippet"
 
@@ -53,6 +56,33 @@ func TestNextDelimiter(t *testing.T) {
 		if res != tc.exp {
 			t.Errorf("Should have returned %v, not %v for input %q with fromIndex %d",
 				tc.exp, res, tc.input, tc.fromIndex)
+		}
+	}
+}
+
+func TestNextNonDelimiter(t *testing.T) {
+	testCases := []struct {
+		input     string
+		fromIndex int
+		expIndex  int
+		expWord   *Word
+	}{
+		{"", 0, 0, nil},
+		{"。", 0, 3, &Word{Original: "。"}},
+		{"this is some text", 0, 0, nil},
+		{"ああ、そうか！なるほどね", 0, 0, nil},
+		{"」？！東京で住んでいる", 0, 3 * 3, &Word{Original: "」？！"}},
+	}
+
+	for _, tc := range testCases {
+		resWord, resIndex := nextNonDelimiter(tc.input, tc.fromIndex)
+		if resIndex != tc.expIndex {
+			t.Errorf("Should have returned index %v, not %v for input %q with fromIndex %d",
+				tc.expIndex, resIndex, tc.input, tc.fromIndex)
+		}
+		if !reflect.DeepEqual(resWord, tc.expWord) {
+			t.Errorf("Should have returned word %+v, not %+v for input %q with fromIndex %d",
+				tc.expWord, resWord, tc.input, tc.fromIndex)
 		}
 	}
 }
