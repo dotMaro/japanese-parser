@@ -11,37 +11,48 @@ import (
 
 // JMdict dictionary.
 type JMdict struct {
-	XMLName xml.Name `xml:"JMdict"`
-	Entries []Entry  `xml:"entry"`
+	XMLName  xml.Name      `xml:"JMdict"`
+	Entries  []JMdictEntry `xml:"entry"`
+	Entities map[string]string
 }
 
-// Entry in JMdict.
-type Entry struct {
+// JMdictEntry is an entry in JMdict.
+type JMdictEntry struct {
 	XMLName  xml.Name `xml:"entry"`
 	Kanji    []string `xml:"k_ele>keb"`
 	Readings []string `xml:"r_ele>reb"`
-	Glossary []string `xml:"sense>gloss"`
+	Sense    []Sense  `xml:"sense"`
 }
 
-func (e Entry) String() string {
-	return fmt.Sprintf("%v %v %v", e.Kanji, e.Readings, e.Glossary)
+// Sense in JMdict.
+type Sense struct {
+	Glossary []string `xml:"gloss"`
+	POS      []string `xml:"pos"` // part of speech
+}
+
+func (e JMdictEntry) String() string {
+	return fmt.Sprintf("%v %v %v", e.Kanji, e.Readings, e.Sense[0].Glossary[0])
 }
 
 // ReadJMDict reads and parses a JMdict file.
 // Upon error it will panic.
 func ReadJMDict() JMdict {
-	file, err := os.Open("dict/JMdict_e")
+	file, err := os.Open("./dict/JMdict_e")
 	if err != nil {
 		panic(fmt.Sprintf("unable to read JMdict file: %v", err))
 	}
+	defer file.Close()
+
+	var dict JMdict
 
 	dec := xml.NewDecoder(file)
-	dec.Entity, err = parseEntityCodes(file)
+	entities, err := parseEntityCodes(file)
 	if err != nil {
 		panic(fmt.Sprintf("unable to parse entities in JMdict file: %v", err))
 	}
+	dec.Entity = entities
+	dict.Entities = entities
 
-	var dict JMdict
 	err = dec.Decode(&dict)
 	if err != nil {
 		panic(fmt.Sprintf("unable to parse JMdict file: %v", err))

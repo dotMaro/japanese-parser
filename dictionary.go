@@ -1,44 +1,149 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
 	"strings"
 	"unicode/utf8"
 )
 
 // Dictionary is used to look up words.
 type Dictionary struct {
-	entries map[string]Entry
+	entries      map[string][]JMdictEntry
+	conjugations []Conjugation
+}
+
+// Conjugation contains information about a word inflection.
+type Conjugation struct {
+	Ending string `json:"ending"`
+	Base   string `json:"base"`
+	POS    string `json:"pos"` // part of speech
+	Name   string `json:"name"`
 }
 
 // NewDictionary reads and parses JMDict and returns a Dictionary.
 func NewDictionary() Dictionary {
 	jmdict := ReadJMDict()
 
-	entries := make(map[string]Entry)
+	entries := make(map[string][]JMdictEntry)
 	for _, entry := range jmdict.Entries {
-		// TODO: Make into a slice and put particles at top
-		for _, kanji := range entry.Kanji {
-			entries[kanji] = entry
+		hasKanjiReadings := len(entry.Kanji) > 0
+		for _, kana := range entry.Readings {
+			defs, ok := entries[kana]
+			if !ok {
+				entries[kana] = []JMdictEntry{entry}
+			} else {
+				// Prepend if it has no kanji readings
+				if !hasKanjiReadings {
+					entries[kana] = append([]JMdictEntry{entry}, defs...)
+				} else {
+					entries[kana] = append(defs, entry)
+				}
+			}
 		}
 
-		for _, kana := range entry.Readings {
-			entries[kana] = entry
+		for _, kanji := range entry.Kanji {
+			defs, ok := entries[kanji]
+			if !ok {
+				entries[kanji] = []JMdictEntry{entry}
+			} else {
+				entries[kanji] = append(defs, entry)
+			}
 		}
 	}
 
-	return Dictionary{entries: entries}
+	return Dictionary{
+		entries:      entries,
+		conjugations: readConjugations(jmdict.Entities),
+	}
+}
+
+func readConjugations(entities map[string]string) []Conjugation {
+	file, err := os.Open("./conjugations.json")
+	if err != nil {
+		panic(fmt.Sprintf("failed to open conjugations file: %v", err))
+	}
+	defer file.Close()
+
+	dec := json.NewDecoder(file)
+	var conjugations []Conjugation
+	err = dec.Decode(&conjugations)
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse conjugations file: %v", err))
+	}
+
+	for i := 0; i < len(conjugations); i++ {
+		c := conjugations[i]
+		pos, ok := entities[c.POS]
+		if !ok {
+			panic(fmt.Sprintf("unknown pos %q for conjugation %+v", c.POS, c))
+		}
+		conjugations[i].POS = pos
+	}
+
+	return conjugations
 }
 
 // LookupWord word s and return an entry, or nil if no match is found.
 func (d *Dictionary) LookupWord(s string) Word {
-	entry, ok := d.entries[s]
+	word := Word{
+		Original: s,
+	}
+	jmDictEntries, ok := d.entries[s]
 	if ok {
-		return Word{
-			Original:   s,
-			Definition: &entry,
+		entries := make([]Entry, len(jmDictEntries))
+		for i, e := range jmDictEntries {
+			entries[i] = Entry{JMdictEntry: e}
+		}
+
+		word.Definitions = entries
+	}
+
+	// Check for conjugations
+	conjugationEntries := d.lookupConjugations(s)
+	if len(conjugationEntries) > 0 {
+		if word.Definitions != nil {
+			word.Definitions = append(word.Definitions, conjugationEntries...)
+		} else {
+			word.Definitions = conjugationEntries
 		}
 	}
-	return Word{Original: s}
+
+	return word
+}
+
+// lookupConjugations for a string.
+// Never returns a nil slice. If no entries were found it will be empty.
+func (d *Dictionary) lookupConjugations(s string) []Entry {
+	var entries []Entry
+
+	for _, c := range d.conjugations {
+		if strings.HasSuffix(s, c.Ending) {
+			conjugationEntries, ok := d.entries[s[:len(s)-len(c.Ending)]+c.Base]
+			if ok {
+				for _, entry := range conjugationEntries {
+					for _, sense := range entry.Sense {
+						for _, pos := range sense.POS {
+							if pos == c.POS {
+								newEntries := make([]Entry, len(conjugationEntries))
+								for i, e := range conjugationEntries {
+									newEntries[i] = Entry{JMdictEntry: e, Conjugation: c}
+								}
+								if entries != nil {
+									entries = append(entries, newEntries...)
+								} else {
+									entries = newEntries
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return entries
 }
 
 // Sentence is a slice of Words.
@@ -57,13 +162,23 @@ func (s Sentence) String() string {
 
 // Word contains the original text and its definition.
 type Word struct {
-	Original   string
-	Definition *Entry
+	Original    string
+	Definitions []Entry
+}
+
+// Entry wraps the JMdict entry with additional information.
+type Entry struct {
+	JMdictEntry JMdictEntry
+	Conjugation Conjugation
+}
+
+func (e Entry) String() string {
+	return e.JMdictEntry.String() + " " + e.Conjugation.Name
 }
 
 func (w Word) String() string {
-	if w.Definition != nil {
-		return w.Definition.String()
+	if w.Definitions != nil && len(w.Definitions) > 0 {
+		return w.Definitions[0].String()
 	}
 	return w.Original
 }
@@ -82,7 +197,7 @@ func (d *Dictionary) ParseSentence(s string) Sentence {
 	for start != -1 && start < len(s) {
 		lookup := s[start:end]
 		word := d.LookupWord(lookup)
-		if word.Definition == nil {
+		if word.Definitions == nil {
 			_, endRuneLen := utf8.DecodeLastRuneInString(lookup)
 			if end-endRuneLen > start {
 				end -= endRuneLen
