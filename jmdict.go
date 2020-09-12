@@ -30,14 +30,70 @@ type Sense struct {
 	POS      []string `xml:"pos"` // part of speech
 }
 
+func (s Sense) String() string {
+	var b strings.Builder
+	for i, g := range s.Glossary {
+		if i != 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(g)
+	}
+	return fmt.Sprintf(b.String())
+}
+
 func (e JMdictEntry) String() string {
 	return fmt.Sprintf("%v %v %v", e.Kanji, e.Readings, e.Sense[0].Glossary[0])
 }
 
-// ReadJMDict reads and parses a JMdict file.
+// DetailedString returns a more detailed string with all meanings included.
+func (e JMdictEntry) DetailedString() string {
+	var b strings.Builder
+	for i, kanji := range e.Kanji {
+		if i != 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(kanji)
+	}
+	if len(e.Kanji) > 0 {
+		b.WriteRune('\n')
+	}
+	for i, kana := range e.Readings {
+		if i != 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(kana)
+	}
+	b.WriteRune('\n')
+	for i, s := range e.Sense {
+		b.WriteString(fmt.Sprintf("%d. %s\n", i+1, s.String()))
+	}
+	return b.String()
+}
+
+// IsParticle returns true if the JMdictEntry has a particle part of speech.
+func (e JMdictEntry) IsParticle() bool {
+	for _, s := range e.Sense {
+		for _, pos := range s.POS {
+			if pos == "particle" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+const defaultJMdictName = "JMdict_e"
+
+// ReadJMDict reads and parses the default JMdict file.
 // Upon error it will panic.
 func ReadJMDict() JMdict {
-	file, err := os.Open("./dict/JMdict_e")
+	return ReadJMDictWithName(defaultJMdictName)
+}
+
+// ReadJMDictWithName reads and parses a specified JMdict file.
+// Upon error it will panic.
+func ReadJMDictWithName(name string) JMdict {
+	file, err := os.Open(fmt.Sprintf("./dict/%s", name))
 	if err != nil {
 		panic(fmt.Sprintf("unable to read JMdict file: %v", err))
 	}

@@ -2,6 +2,12 @@ package main
 
 import "testing"
 
+const jmdictSnippet = "JMdict_e-snippet"
+
+func newTestDict() Dictionary {
+	return NewDictionaryWithName(jmdictSnippet)
+}
+
 func TestParseSentence(t *testing.T) {
 	testCases := []struct {
 		input             string
@@ -11,15 +17,12 @@ func TestParseSentence(t *testing.T) {
 		{"", 0, 0},
 		{"。", 1, 0},
 		{"latin", 5, 0},
-		{"ああ、そうか！なるほどね", 5, 4},
+		{"そうか！なるほどね", 4, 3},
 		{"パンを食べる", 3, 3},
 		{"パンをたべた", 3, 3},
-		// {"東京で住んでいる", 0, 8 * 3}, TODO: Enable these when conjugation is supported
-		// {"東京で住んでいますか？それとも京都で？", 0, 10 * 3},
-		// {"東京で住んでいますか？それとも京都で？", 11 * 3, 18 * 3},
 	}
 
-	dict := NewDictionary()
+	dict := newTestDict()
 	for _, tc := range testCases {
 		res := dict.ParseSentence(tc.input)
 		len := len(res)

@@ -25,7 +25,22 @@ type Conjugation struct {
 // NewDictionary reads and parses JMDict and returns a Dictionary.
 func NewDictionary() Dictionary {
 	jmdict := ReadJMDict()
+	return Dictionary{
+		entries:      buildEntryMap(jmdict),
+		conjugations: readConjugations(jmdict.Entities),
+	}
+}
 
+// NewDictionaryWithName reads and parses a specified JMDict and returns a Dictionary.
+func NewDictionaryWithName(name string) Dictionary {
+	jmdict := ReadJMDictWithName(name)
+	return Dictionary{
+		entries:      buildEntryMap(jmdict),
+		conjugations: readConjugations(jmdict.Entities),
+	}
+}
+
+func buildEntryMap(jmdict JMdict) map[string][]JMdictEntry {
 	entries := make(map[string][]JMdictEntry)
 	for _, entry := range jmdict.Entries {
 		hasKanjiReadings := len(entry.Kanji) > 0
@@ -34,8 +49,8 @@ func NewDictionary() Dictionary {
 			if !ok {
 				entries[kana] = []JMdictEntry{entry}
 			} else {
-				// Prepend if it has no kanji readings
-				if !hasKanjiReadings {
+				// Prepend if it has no kanji readings or is a particle
+				if !hasKanjiReadings || entry.IsParticle() {
 					entries[kana] = append([]JMdictEntry{entry}, defs...)
 				} else {
 					entries[kana] = append(defs, entry)
@@ -52,11 +67,7 @@ func NewDictionary() Dictionary {
 			}
 		}
 	}
-
-	return Dictionary{
-		entries:      entries,
-		conjugations: readConjugations(jmdict.Entities),
-	}
+	return entries
 }
 
 func readConjugations(entities map[string]string) []Conjugation {
@@ -176,9 +187,26 @@ func (e Entry) String() string {
 	return e.JMdictEntry.String() + " " + e.Conjugation.Name
 }
 
+// DetailedString returns a more detailed string.
+func (e Entry) DetailedString() string {
+	return e.JMdictEntry.DetailedString() + "\n" + e.Conjugation.Name
+}
+
 func (w Word) String() string {
 	if w.Definitions != nil && len(w.Definitions) > 0 {
 		return w.Definitions[0].String()
+	}
+	return w.Original
+}
+
+// DetailedString returns a more detailed string with all matches included.
+func (w Word) DetailedString() string {
+	if w.Definitions != nil && len(w.Definitions) > 0 {
+		var b strings.Builder
+		for _, def := range w.Definitions {
+			b.WriteString(def.DetailedString())
+		}
+		return b.String()
 	}
 	return w.Original
 }
@@ -290,11 +318,12 @@ func firstNonDelimiter(s string, fromIndex int) (*Word, int) {
 		return nil, len(s)
 	}
 
-	for i, c := range s[fromIndex:] {
-		if !isDelimiter(c) {
+	for i, r := range s[fromIndex:] {
+		if !isDelimiter(r) {
 			var word *Word
-			if i > fromIndex {
-				word = &Word{Original: s[fromIndex:i]}
+			// Adding one since the end index is not included in the slice
+			if i+1 > fromIndex {
+				word = &Word{Original: s[fromIndex : i+1]}
 			}
 			return word, i + fromIndex
 		}
