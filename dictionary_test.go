@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-const jmdictSnippet = "JMdict_e-snippet"
-
 func newTestDict() Dictionary {
 	return NewDictionaryWithName(jmdictSnippet)
 }
