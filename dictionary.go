@@ -214,7 +214,7 @@ func (w Word) DetailedString() string {
 // ParseSentence and returns a Sentence,
 func (d *Dictionary) ParseSentence(s string) Sentence {
 	var words Sentence
-	punctuationWord, start := firstNonDelimiter(s, 0)
+	punctuationWord, start := nextNonDelimiter(s, 0)
 	if punctuationWord != nil {
 		words = []Word{*punctuationWord}
 	} else {
@@ -238,7 +238,7 @@ func (d *Dictionary) ParseSentence(s string) Sentence {
 			}
 		} else {
 			var punctuationWord *Word
-			punctuationWord, start = firstNonDelimiter(s, end)
+			punctuationWord, start = nextNonDelimiter(s, end)
 			if punctuationWord != nil {
 				words = append(words, word, *punctuationWord)
 			} else {
@@ -311,19 +311,18 @@ func nextDelimiter(s string, fromIndex int) int {
 	return len
 }
 
-// firstNonDelimiter returns the index of the first byte that's
-// not a delimiter. If there are no non-delimiters in the string then -1 is returned.
-func firstNonDelimiter(s string, fromIndex int) (*Word, int) {
-	if len(s) == fromIndex {
+// nextNonDelimiter returns the index of the first byte that's
+// not a delimiter. If there are no non-delimiters in the string then len(s) is returned.
+func nextNonDelimiter(s string, fromIndex int) (*Word, int) {
+	if fromIndex >= len(s) {
 		return nil, len(s)
 	}
 
 	for i, r := range s[fromIndex:] {
 		if !isDelimiter(r) {
 			var word *Word
-			// Adding one since the end index is not included in the slice
-			if i+1 > fromIndex {
-				word = &Word{Original: s[fromIndex : i+1]}
+			if i > 0 {
+				word = &Word{Original: s[fromIndex : fromIndex+i]}
 			}
 			return word, i + fromIndex
 		}
