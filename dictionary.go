@@ -137,14 +137,13 @@ func (d *Dictionary) lookupConjugations(s string) []Entry {
 					for _, sense := range entry.Sense {
 						for _, pos := range sense.POS {
 							if pos == c.POS {
-								newEntries := make([]Entry, len(conjugationEntries))
-								for i, e := range conjugationEntries {
-									newEntries[i] = Entry{JMdictEntry: e, Conjugation: c}
-								}
-								if entries != nil {
-									entries = append(entries, newEntries...)
-								} else {
-									entries = newEntries
+								for _, e := range conjugationEntries {
+									if entries != nil {
+										newEntry := Entry{JMdictEntry: e, Conjugation: &c}
+										entries = append(entries, newEntry)
+									} else {
+										entries = []Entry{{JMdictEntry: e, Conjugation: &c}}
+									}
 								}
 							}
 						}
@@ -173,23 +172,31 @@ func (s Sentence) String() string {
 
 // Word contains the original text and its definition.
 type Word struct {
-	Original    string
-	Definitions []Entry
+	Original    string  `json:"original"`
+	Definitions []Entry `json:"definitions"`
 }
 
 // Entry wraps the JMdict entry with additional information.
 type Entry struct {
-	JMdictEntry JMdictEntry
-	Conjugation Conjugation
+	JMdictEntry JMdictEntry  `json:"entry"`
+	Conjugation *Conjugation `json:"conjugation,omitempty"`
 }
 
 func (e Entry) String() string {
-	return e.JMdictEntry.String() + " " + e.Conjugation.Name
+	var conjugation string
+	if e.Conjugation != nil {
+		conjugation = e.Conjugation.Name
+	}
+	return e.JMdictEntry.String() + " " + conjugation
 }
 
 // DetailedString returns a more detailed string.
 func (e Entry) DetailedString() string {
-	return e.JMdictEntry.DetailedString() + "\n" + e.Conjugation.Name
+	var conjugation string
+	if e.Conjugation != nil {
+		conjugation = e.Conjugation.Name
+	}
+	return e.JMdictEntry.DetailedString() + "\n" + conjugation
 }
 
 func (w Word) String() string {
@@ -285,6 +292,7 @@ func (w *window) incrementStart() {
 	w.end = w.nextDelim
 }
 
+// These have been checked to not be included in any words in jmdict
 const delimiters = "。！？「」（）"
 
 func isDelimiter(r rune) bool {

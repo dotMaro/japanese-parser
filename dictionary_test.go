@@ -33,6 +33,40 @@ func TestParseSentence(t *testing.T) {
 	}
 }
 
+func TestLookupConjugations(t *testing.T) {
+	testCases := []struct {
+		input      string
+		expMatches int
+	}{
+		{
+			input:      "食べた",
+			expMatches: 1,
+		},
+		{
+			input:      "走た", // godan shouldn't match
+			expMatches: 0,
+		},
+	}
+
+	dict := newTestDict()
+	// overwrite conjugations so as to not be dependent on the contents of the actual file
+	dict.conjugations = []Conjugation{
+		{
+			Ending: "た",
+			Base:   "る",
+			POS:    "Ichidan verb",
+			Name:   "Past form",
+		},
+	}
+
+	for _, tc := range testCases {
+		res := dict.lookupConjugations(tc.input)
+		if len(res) != tc.expMatches {
+			t.Errorf("Expected %d matches but got %d", tc.expMatches, len(res))
+		}
+	}
+}
+
 func TestNextDelimiter(t *testing.T) {
 	testCases := []struct {
 		input     string

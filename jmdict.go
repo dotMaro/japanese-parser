@@ -18,16 +18,16 @@ type JMdict struct {
 
 // JMdictEntry is an entry in JMdict.
 type JMdictEntry struct {
-	XMLName  xml.Name `xml:"entry"`
-	Kanji    []string `xml:"k_ele>keb"`
-	Readings []string `xml:"r_ele>reb"`
-	Sense    []Sense  `xml:"sense"`
+	XMLName  xml.Name `xml:"entry" json:"-"`
+	Kanji    []string `xml:"k_ele>keb" json:"kanji"`
+	Readings []string `xml:"r_ele>reb" json:"readings"`
+	Sense    []Sense  `xml:"sense" json:"sense"`
 }
 
 // Sense in JMdict.
 type Sense struct {
-	Glossary []string `xml:"gloss"`
-	POS      []string `xml:"pos"` // part of speech
+	Glossary []string `xml:"gloss" json:"glossary"`
+	POS      []string `xml:"pos" json:"pos"` // part of speech
 }
 
 func (s Sense) String() string {
@@ -38,7 +38,7 @@ func (s Sense) String() string {
 		}
 		b.WriteString(g)
 	}
-	return fmt.Sprintf(b.String())
+	return b.String()
 }
 
 func (e JMdictEntry) String() string {
